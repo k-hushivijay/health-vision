@@ -15,7 +15,8 @@ export function LoginForm() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
 
-  // --- New phone-OTP states ---
+  // phone OTP states
+  const [phoneMode, setPhoneMode] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [phoneOtp, setPhoneOtp] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
@@ -23,13 +24,18 @@ export function LoginForm() {
 
   const { login, switchRole } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await login(email, password);
+  };
+
+  const handlePhoneLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpVerified) {
       alert('Please verify the OTP sent to your phone.');
       return;
     }
-    await login(email, password, phone);
+    await login('', '', phone); // adjust if your login function needs different args
   };
 
   const sendPhoneOtp = async () => {
@@ -37,7 +43,7 @@ export function LoginForm() {
     try {
       await axios.post('/api/send-otp', { phone });
       setOtpSent(true);
-    } catch (err) {
+    } catch {
       alert('Failed to send OTP. Try again.');
     }
     setOtpLoading(false);
@@ -47,13 +53,9 @@ export function LoginForm() {
     setOtpLoading(true);
     try {
       const res = await axios.post('/api/verify-otp', { phone, otp: phoneOtp });
-      if (res.data.success) {
-        setOtpVerified(true);
-        alert('Phone number verified ✔');
-      } else {
-        alert('Invalid OTP');
-      }
-    } catch (err) {
+      if (res.data.success) setOtpVerified(true);
+      else alert('Invalid OTP');
+    } catch {
       alert('Verification failed.');
     }
     setOtpLoading(false);
@@ -79,9 +81,7 @@ export function LoginForm() {
         <Card>
           <CardHeader>
             <CardTitle>Login to Your Account</CardTitle>
-            <CardDescription>
-              Choose your preferred login method
-            </CardDescription>
+            <CardDescription>Choose your preferred login method</CardDescription>
           </CardHeader>
 
           <CardContent>
@@ -92,94 +92,123 @@ export function LoginForm() {
                 <TabsTrigger value="demo">Quick Demo</TabsTrigger>
               </TabsList>
 
-              {/* ---------- Normal Email/Phone Login with Phone OTP ---------- */}
-              <TabsContent value="login" className="space-y-4">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <div className="flex gap-2">
+              {/* ---- Combined Login Tab ---- */}
+              <TabsContent value="login">
+                {!phoneMode ? (
+                  // ---------- Email + Password Login ----------
+                  <form onSubmit={handleEmailLogin} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
                       <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="Enter your phone number"
-                        value={phone}
-                        onChange={e => setPhone(e.target.value)}
+                        id="email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
                         required
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={sendPhoneOtp}
-                        disabled={otpLoading || phone.length < 10}
-                      >
-                        {otpLoading ? 'Sending…' : otpSent ? 'Resend' : 'Send OTP'}
-                      </Button>
                     </div>
-                  </div>
 
-                  {otpSent && (
                     <div className="space-y-2">
-                      <Label htmlFor="phone-otp">Enter OTP</Label>
+                      <Label htmlFor="password">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        required
+                      />
+                      <div className="flex justify-between text-sm">
+                        <a
+                          href="/forgot-password"
+                          className="text-primary hover:underline"
+                        >
+                          Forgot Password?
+                        </a>
+                        <button
+                          type="button"
+                          className="text-primary hover:underline"
+                          onClick={() => setPhoneMode(true)}
+                        >
+                          Login with Phone OTP
+                        </button>
+                      </div>
+                    </div>
+
+                    <Button type="submit" className="w-full">
+                      Login
+                    </Button>
+                  </form>
+                ) : (
+                  // ---------- Phone + OTP Login ----------
+                  <form onSubmit={handlePhoneLogin} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
                       <div className="flex gap-2">
                         <Input
-                          id="phone-otp"
-                          type="text"
-                          placeholder="6-digit OTP"
-                          value={phoneOtp}
-                          onChange={e => setPhoneOtp(e.target.value)}
+                          id="phone"
+                          type="tel"
+                          placeholder="Enter your phone number"
+                          value={phone}
+                          onChange={e => setPhone(e.target.value)}
                           required
                         />
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={verifyPhoneOtp}
-                          disabled={otpLoading}
+                          onClick={sendPhoneOtp}
+                          disabled={otpLoading || phone.length < 10}
                         >
-                          {otpLoading ? 'Verifying…' : 'Verify'}
+                          {otpLoading ? 'Sending…' : otpSent ? 'Resend' : 'Send OTP'}
                         </Button>
                       </div>
                     </div>
-                  )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      required
-                    />
-                    <div className="flex justify-end">
-                      <a
-                        href="/forgot-password"
-                        className="text-sm text-primary hover:underline"
+                    {otpSent && (
+                      <div className="space-y-2">
+                        <Label htmlFor="phone-otp">Enter OTP</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="phone-otp"
+                            type="text"
+                            placeholder="6-digit OTP"
+                            value={phoneOtp}
+                            onChange={e => setPhoneOtp(e.target.value)}
+                            required
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={verifyPhoneOtp}
+                            disabled={otpLoading}
+                          >
+                            {otpLoading ? 'Verifying…' : 'Verify'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-end text-sm">
+                      <button
+                        type="button"
+                        className="text-primary hover:underline"
+                        onClick={() => setPhoneMode(false)}
                       >
-                        Forgot Password?
-                      </a>
+                        Back to Email Login
+                      </button>
                     </div>
-                  </div>
 
-                  <Button type="submit" className="w-full" disabled={!otpVerified}>
-                    Login
-                  </Button>
-                </form>
+                    <Button type="submit" className="w-full" disabled={!otpVerified}>
+                      Login
+                    </Button>
+                  </form>
+                )}
               </TabsContent>
 
-              {/* ---- Your existing Aadhaar & Demo tabs remain unchanged ---- */}
+              {/* ---- Aadhaar & Demo tabs stay as before ---- */}
+              <TabsContent value="aadhaar">…</TabsContent>
+              <TabsContent value="demo">…</TabsContent>
             </Tabs>
           </CardContent>
         </Card>
