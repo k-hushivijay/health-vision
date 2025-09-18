@@ -6,13 +6,14 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string;        // ✅ Added optional phone number
   role: UserRole;
   avatar?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, phone?: string) => Promise<void>; // ✅ phone optional
   logout: () => void;
   switchRole: (role: UserRole) => void;
 }
@@ -44,16 +45,23 @@ const mockUsers: Record<UserRole, User> = {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
-  const login = async (email: string, password: string) => {
-    // Mock login - in real app this would be API call
-    const role = email.includes('dr.') ? 'doctor' : 
-                email.includes('admin') ? 'admin' : 'patient';
-    setUser(mockUsers[role]);
+  const login = async (email: string, password: string, phone?: string) => {
+    // Mock login - in a real app this would be an API call
+    const role: UserRole = email.includes('dr.')
+      ? 'doctor'
+      : email.includes('admin')
+      ? 'admin'
+      : 'patient';
+
+    // Attach phone if provided
+    setUser({
+      ...mockUsers[role],
+      email,
+      phone: phone || undefined,
+    });
   };
 
-  const logout = () => {
-    setUser(null);
-  };
+  const logout = () => setUser(null);
 
   const switchRole = (role: UserRole) => {
     setUser(mockUsers[role]);
